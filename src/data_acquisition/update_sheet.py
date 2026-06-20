@@ -58,11 +58,14 @@ def fetch_bhavcopy_for_date(date_obj):
                     
                     df_top = df.sort_values(by=vol_col, ascending=False).head(250)
                     # Save raw data locally
-                    os.makedirs("data/raw", exist_ok=True)
+                    # Save historical data
+                    os.makedirs("data/historical", exist_ok=True)
 
-                    file_name = f"data/raw/nse_{date_obj.strftime('%Y-%m-%d')}.csv"
+                    file_name = f"data/historical/nse_{date_obj.strftime('%Y-%m-%d')}.csv"
 
                     df_top.to_csv(file_name, index=False)
+
+                    print(f"Saved historical file: {file_name}")
                     return df_top[[sym_col, vol_col, close_col]].values.tolist()
         return None
     except:

@@ -25,3 +25,14 @@ jobs:
         env:
           GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
         run: python src/data_acquisition/update_sheet.py
+
+      - name: Commit Historical Data
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          git add data/historical/*.csv
+
+          git diff --staged --quiet || git commit -m "Add NSE historical data"
+
+          git push
