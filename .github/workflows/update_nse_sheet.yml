@@ -1,5 +1,8 @@
 name: Update NSE Stocks to Google Sheet
 
+permissions:
+  contents: write
+  id-token: write
 on:
   schedule:
     # Run at 16:00 (UTC) every day from Monday to Saturday
