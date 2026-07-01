@@ -226,6 +226,18 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
     df = rearrange_columns(df)
 
     # Temporary Check
-    print("\nColumns Rearranged Successfully!")
-    print(df.columns.tolist())
-    break
+    # print("\nColumns Rearranged Successfully!")
+    # print(df.columns.tolist())
+    # break
+
+    # ------------------------
+    # Save Processed CSV
+    # ------------------------
+    output_file = OUTPUT_FOLDER / csv_file.name
+
+    #for file to be processed - to avoid existing files proccessing again
+    if output_file.exists():
+        print(f"Skipping: {csv_file.name}")
+        continue
+    df.to_csv(output_file , index=False)
+    print(f"Saved successfully: {output_file.name}")
