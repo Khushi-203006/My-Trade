@@ -1,5 +1,35 @@
 import pandas as pd  #filter, modify, read, save and sort CSV file
 from pathlib import Path #helps working with file and folder paths
+import numpy as np
+
+def add_calculated_columns(df):
+
+    #add calculated columns to the dataframe
+
+    prev_close = df["PrevClose"].replace(0, np.nan) # replace 0 with NaN to avoid division by zero
+    open_price = df["Open"].replace(0,np.nan) #replace 0 with NaN to avoid division by zero
+
+    #Daily Return (%)
+    df["DailyReturnPct"] = (
+        (df["Close"] - prev_close)/ prev_close
+    ) * 100
+
+    #Daily Range
+    df["DailyRange"] = (
+        df["High"] - df["Low"]
+    )
+
+    #Range Percentage
+    df["RangePct"] = (
+        (df["DailyRange"]) / open_price
+    ) * 100
+
+    #Gap Percentage
+    df["GapPct"] = (
+        (open_price - prev_close) / prev_close
+    ) * 100
+
+    return df
 
 #------------
 #Project Folders
@@ -29,7 +59,7 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
     df = pd.read_csv(csv_file)
     df.columns = df.columns.str.strip()
 
-    print(df.columns.tolist())
+    # print(df.columns.tolist())
 
     for col in ["TtlTradgVol", "TTL_TRD_QNTY", "TtlTrdQty", "TotTrdQty", "TOTTRDQTY", "Volume"]:
         if col in df.columns:
@@ -101,16 +131,16 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
         "NO_OF_TRADES": "Trades"
     }
 
-    print("\nBefore Rename:")
-    print(df.columns.tolist())
+    # print("\nBefore Rename:")
+    # print(df.columns.tolist())
 
     df.rename(columns=rename_dict, inplace=True)
 
     if "Company" not in df.columns and "Symbol" in df.columns:
         df["Company"] = df["Symbol"]
 
-    print("\nAfter Rename:")
-    print(df.columns.tolist())
+    # print("\nAfter Rename:")
+    # print(df.columns.tolist())
 
     # ------------------------
     # Keep Required Columns
@@ -135,18 +165,32 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
         raise ValueError(f"Missing required columns after rename: {missing_columns}")
 
     df = df[required_columns]
-'''
-    print("\nTemporary Check - Code is working till required columns step")
-    print(f"Rows after top 250 filter: {len(df)}")
-    print("Final Columns:")
-    print(df.columns.tolist())
-    print("Sample Data:")
-    print(df.head())
+
+    # print("\nTemporary Check - Code is working till required columns step")
+    # print(f"Rows after top 250 filter: {len(df)}")
+    # print("Final Columns:")
+    # print(df.columns.tolist())
+    # print("Sample Data:")
+    # print(df.head())
+
+    # # Uncomment while testing only first file
+    # break
+
+    df = add_calculated_columns(df)
+
+    # ------------------------
+    # Temporary Check
+    # ------------------------
+
+    print("\nCalculated Columns Added Successfully!")
+    print(df[[
+    "Symbol",
+    "DailyReturnPct",
+    "DailyRange",
+    "RangePct",
+    "GapPct"
+    ]].head())
 
     # Uncomment while testing only first file
     break
-
-'''
-
-
 
