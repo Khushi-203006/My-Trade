@@ -1,13 +1,152 @@
-from pathlib import Path
+import pandas as pd  #filter, modify, read, save and sort CSV file
+from pathlib import Path #helps working with file and folder paths
 
-folder = Path(__file__).resolve().parents[2] / "data" / "historical"
+#------------
+#Project Folders
+#------------
+#project root folder
+BASE_DIR = Path(__file__).resolve ().parents[2]
 
-for file in folder.glob("*.csv"):
-    name = file.stem
+#raw data folder
+INPUT_FOLDER = BASE_DIR / "data" / "historical"
 
-    if "_" in name and not name.startswith("nse"):
-        day,month,year = name.split("_")
-        new_name = f"nse_{year}-{month.zfill(2)}-{day.zfill(2)}.csv"
-        file.rename(folder / new_name)
+#processed data folder
+OUTPUT_FOLDER = BASE_DIR/"data" / "processed"
 
-print("Done!")
+#Create processed folderif it doesn't exist
+OUTPUT_FOLDER.mkdir(parents = True , exist_ok = True)
+
+
+#Read every CSV file from the historical folder
+for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every file ending with .csv
+    print(f"\nProcessing: {csv_file.name}")
+
+    #-----------
+    #select Top 250 Stocks
+    #-----------
+
+    #Read CSV into a DataFrames
+    df = pd.read_csv(csv_file)
+    df.columns = df.columns.str.strip()
+
+    print(df.columns.tolist())
+
+    for col in ["TtlTradgVol", "TTL_TRD_QNTY", "TtlTrdQty", "TotTrdQty", "TOTTRDQTY", "Volume"]:
+        if col in df.columns:
+            volume_column = col
+            break
+    else:
+        raise ValueError("Volume column not found!")
+
+    #sort by trading volume (Highest to lowest)
+    df = df.sort_values(by = volume_column , ascending=False)
+
+    #keep only the Top 250 stockes
+    df = df.head(250)
+
+    #Temprary columns
+    #print(df.head(10))
+    #break
+
+    # ------------------------
+    # Rename Columns
+    # ------------------------
+
+    rename_dict = {
+
+        # Date
+        "TradDt": "Date",
+        "DATE1": "Date",
+
+        # Symbol
+        "TckrSymb": "Symbol",
+        "SYMBOL": "Symbol",
+
+        # Company
+        "FinInstrmNm": "Company",
+        "NAME OF COMPANY": "Company",
+
+        # Prices
+        "OpnPric": "Open",
+        "OPEN": "Open",
+        "OPEN_PRICE": "Open",
+
+        "HghPric": "High",
+        "HIGH": "High",
+        "HIGH_PRICE": "High",
+
+        "LwPric": "Low",
+        "LOW": "Low",
+        "LOW_PRICE": "Low",
+
+        "ClsPric": "Close",
+        "CLOSE": "Close",
+        "CLOSE_PRICE": "Close",
+
+        "PrvsClsgPric": "PrevClose",
+        "PREVCLOSE": "PrevClose",
+        "PREV_CLOSE": "PrevClose",
+
+        # Volume
+        "TtlTradgVol": "Volume",
+        "TTL_TRD_QNTY": "Volume",
+
+        # Traded Value
+        "TtlTrfVal": "TradedValue",
+        "TTL_TRD_VAL": "TradedValue",
+        "TURNOVER_LACS": "TradedValue",
+
+        # Trades
+        "TtlNbOfTxsExctd": "Trades",
+        "NO_OF_TRADES": "Trades"
+    }
+
+    print("\nBefore Rename:")
+    print(df.columns.tolist())
+
+    df.rename(columns=rename_dict, inplace=True)
+
+    if "Company" not in df.columns and "Symbol" in df.columns:
+        df["Company"] = df["Symbol"]
+
+    print("\nAfter Rename:")
+    print(df.columns.tolist())
+
+    # ------------------------
+    # Keep Required Columns
+    # ------------------------
+
+    required_columns = [
+        "Date",
+        "Symbol",
+        "Company",
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "PrevClose",
+        "Volume",
+        "TradedValue",
+        "Trades"
+    ]
+
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"Missing required columns after rename: {missing_columns}")
+
+    df = df[required_columns]
+'''
+    print("\nTemporary Check - Code is working till required columns step")
+    print(f"Rows after top 250 filter: {len(df)}")
+    print("Final Columns:")
+    print(df.columns.tolist())
+    print("Sample Data:")
+    print(df.head())
+
+    # Uncomment while testing only first file
+    break
+
+'''
+
+
+
