@@ -31,6 +31,28 @@ def add_calculated_columns(df):
 
     return df
 
+def rearrange_columns(df):
+    #Rearrange columns into a fixed order
+
+    column_order = [
+        "Date",
+        "Symbol",
+        "Company",
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "PrevClose",
+        "DailyReturnPct",
+        "DailyRange",
+        "RangePct",
+        "GapPct",
+        "Volume",
+        "TradedValue",
+        "Trades"
+    ]
+    return df[column_order]
+
 #------------
 #Project Folders
 #------------
@@ -166,6 +188,7 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
 
     df = df[required_columns]
 
+    # Temporary Check - For required columns
     # print("\nTemporary Check - Code is working till required columns step")
     # print(f"Rows after top 250 filter: {len(df)}")
     # print("Final Columns:")
@@ -179,18 +202,30 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
     df = add_calculated_columns(df)
 
     # ------------------------
-    # Temporary Check
+    # Round Values
     # ------------------------
+    df = df.round(2)
 
-    print("\nCalculated Columns Added Successfully!")
-    print(df[[
-    "Symbol",
-    "DailyReturnPct",
-    "DailyRange",
-    "RangePct",
-    "GapPct"
-    ]].head())
+    # Temporary Check - For calculated columns
+   
+    # print("\nCalculated Columns Added Successfully!")
+    # print(df[[
+    # "Symbol",
+    # "DailyReturnPct",
+    # "DailyRange",
+    # "RangePct",
+    # "GapPct"
+    # ]].head())
 
     # Uncomment while testing only first file
-    break
+    # break
 
+    # ------------------------
+    # Rearrange Columns
+    # ------------------------
+    df = rearrange_columns(df)
+
+    # Temporary Check
+    print("\nColumns Rearranged Successfully!")
+    print(df.columns.tolist())
+    break
