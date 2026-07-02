@@ -19,7 +19,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install Libraries
-        run: pip install gspread oauth2client pandas requests
+        run: pip install gspread oauth2client pandas requests numpy
 
       - name: Run Python Script
         env:
