@@ -34,21 +34,25 @@ import json
 # STEP 1 : CONNECT TO GOOGLE SHEETS
 # =============================================================================
 
-# Read Google credentials stored inside GitHub Secrets
-creds_json = os.environ.get("GCP_CREDENTIALS")
-
-# Convert JSON string into dictionary
-creds_dict = json.loads(creds_json)
-
-# Permissions required for Google Sheets
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
 ]
 
-# Create authentication object
-creds = ServiceAccountCredentials.from_json_keyfile_dict(
-    creds_dict,
+# Check whether running on GitHub Actions
+creds_json = os.environ.get("GCP_CREDENTIALS")
+
+if creds_json:
+    # GitHub Actions
+    creds_dict = json.loads(creds_json)
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(
+        creds_dict,
+        scope
+    )
+else:
+    # Local computer
+    creds = ServiceAccountCredentials.from_json_keyfile_name(
+    "../../credentials.json",
     scope
 )
 

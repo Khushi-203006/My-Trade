@@ -16,3 +16,6 @@ __pycache__/
 
 # Logs
 *.log
+
+# Google Service Account Credentials
+credentials.json
