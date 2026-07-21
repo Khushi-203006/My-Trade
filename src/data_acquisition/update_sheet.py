@@ -187,15 +187,15 @@ def fetch_bhavcopy_for_date(date_obj):
 
                     # ==========================================================
                     # SORT BY VOLUME
+                    # Keep the full bhavcopy instead of truncating to 250 rows
                     # ==========================================================
 
-                    df_top = (
+                    df_full = (
                         df
                         .sort_values(
                             by=volume_column,
                             ascending=False
                         )
-                        .head(250)
                     )
 
                     # ==========================================================
@@ -212,7 +212,7 @@ def fetch_bhavcopy_for_date(date_obj):
                         f"nse_{date_obj.strftime('%Y-%m-%d')}.csv"
                     )
 
-                    df_top.to_csv(
+                    df_full.to_csv(
                         file_name,
                         index=False
                     )
@@ -222,7 +222,7 @@ def fetch_bhavcopy_for_date(date_obj):
                     )
 
                     # Return only required columns
-                    return df_top[
+                    return df_full[
                         [
                             symbol_column,
                             volume_column,
@@ -271,14 +271,19 @@ for i in range(5):
 
 if data_to_insert:
 
-    # Clear old stock list
-    worksheet.batch_clear(["A2:C251"])
+    # Clear old stock list and make room for the full dataset
+    worksheet.clear()
 
-    # Upload latest data
-    worksheet.update(
-        "A2",
-        data_to_insert
-    )
+    if len(data_to_insert) > 0:
+        worksheet.resize(rows=len(data_to_insert) + 1, cols=3)
+
+        # Upload latest data
+        worksheet.update(
+            "A2",
+            data_to_insert
+        )
+    else:
+        print("No data rows available to update the sheet.")
 
     # Current IST time
     ist_time = (

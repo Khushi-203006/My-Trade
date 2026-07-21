@@ -71,10 +71,16 @@ OUTPUT_FOLDER.mkdir(parents = True , exist_ok = True)
 
 #Read every CSV file from the historical folder
 for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every file ending with .csv
-    print(f"\nProcessing: {csv_file.name}")
+    output_file = OUTPUT_FOLDER / csv_file.name
+
+    if output_file.exists():
+        print(f"\nSkipping already processed: {csv_file.name}")
+        continue
+
+    print(f"\nProcessing pending file: {csv_file.name}")
 
     #-----------
-    #select Top 250 Stocks
+    # Load full bhavcopy data
     #-----------
 
     #Read CSV into a DataFrames
@@ -93,8 +99,7 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
     #sort by trading volume (Highest to lowest)
     df = df.sort_values(by = volume_column , ascending=False)
 
-    #keep only the Top 250 stockes
-    df = df.head(250)
+    # Keep all rows from the bhavcopy instead of truncating to the top 250
 
     #Temprary columns
     #print(df.head(10))
@@ -233,11 +238,5 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
     # ------------------------
     # Save Processed CSV
     # ------------------------
-    output_file = OUTPUT_FOLDER / csv_file.name
-
-    #for file to be processed - to avoid existing files proccessing again
-    if output_file.exists():
-        print(f"Skipping: {csv_file.name}")
-        continue
     df.to_csv(output_file , index=False)
     print(f"Saved successfully: {output_file.name}")
