@@ -51,8 +51,17 @@ if creds_json:
     )
 else:
     # Local computer
-    creds = ServiceAccountCredentials.from_json_keyfile_name(
-    "../../credentials.json",
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+credentials_path = os.path.join(
+    script_dir,
+    "..",
+    "..",
+    "credentials.json"
+)
+
+creds = ServiceAccountCredentials.from_json_keyfile_name(
+    credentials_path,
     scope
 )
 
@@ -66,8 +75,8 @@ client = gspread.authorize(creds)
 
 spreadsheet_id = "1ibuSpjbCPaRyPM2u0mK3jN_eG3lWqzaz-eVdmbvL4yg"
 
-# Open the worksheet named "Top 250 Stocks"
-worksheet = client.open_by_key(spreadsheet_id).worksheet("Top 250 Stocks")
+# Open the worksheet named "BhavStock List"
+worksheet = client.open_by_key(spreadsheet_id).worksheet("BhavStock List")
 
 
 # =============================================================================
@@ -265,25 +274,32 @@ for i in range(5):
         fetched_date = current_date.strftime("%d-%b-%Y")
         break
 
-
-
 # STEP 3 : UPDATE GOOGLE SHEET
 
 if data_to_insert:
 
-    # Clear old stock list and make room for the full dataset
-    worksheet.clear()
+    # Resize sheet first
+    worksheet.resize(
+        rows=len(data_to_insert) + 1,
+        cols=11
+    )
 
-    if len(data_to_insert) > 0:
-        worksheet.resize(rows=len(data_to_insert) + 1, cols=3)
+    # Clear previous stock data
+    worksheet.batch_clear(
+        [f"A2:C{worksheet.row_count}"]
+    )
 
-        # Upload latest data
-        worksheet.update(
-            "A2",
-            data_to_insert
-        )
-    else:
-        print("No data rows available to update the sheet.")
+    # Write column headings
+    worksheet.update(
+        "A1:C1",
+        [["Symbol", "Volume", "Close Price"]]
+    )
+
+    # Upload latest bhavcopy
+    worksheet.update(
+        "A2",
+        data_to_insert
+    )
 
     # Current IST time
     ist_time = (
@@ -299,8 +315,12 @@ if data_to_insert:
 
     # Write status
     worksheet.update(
-        "K2",
+        "G2",
         [[status_message]]
     )
 
     print("SUCCESS : Google Sheet Updated!")
+
+else:
+
+    print("No data rows available.")
