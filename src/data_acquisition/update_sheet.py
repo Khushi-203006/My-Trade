@@ -77,10 +77,30 @@ def fetch_bhavcopy_for_date(date_obj):
                     filter_keywords = 'BEES|ETF|GOLD|LIQUID|CASE|SILVER|LIQ'
                     df = df[~df[sym_col].astype(str).str.contains(filter_keywords, case=False, na=False)]
                     
-                    df_top = df.sort_values(by=vol_col, ascending=False)
-                    return df_top[[sym_col, vol_col, close_col]].values.tolist()
+                df_top = df.sort_values(by=vol_col, ascending=False)
+
+                # Save complete Bhavcopy locally
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.dirname(os.path.dirname(script_dir))
+
+                historical_folder = os.path.join(project_root, "data", "historical")
+
+                os.makedirs(historical_folder, exist_ok=True)
+
+                filename = os.path.join(
+                    historical_folder,
+                    f"nse_{date_obj.strftime('%Y-%m-%d')}.csv"
+                )
+
+                df_top.to_csv(filename, index=False)
+
+                print(f"Saved: {filename}")
+
+                return df_top[[sym_col, vol_col, close_col]].values.tolist()
+                
         return None
-    except:
+    except Exception as e:
+        print(e)
         return None
 
 # 3. Execution Logic
@@ -99,7 +119,7 @@ for i in range(5):
 
 # 4. Update Sheet
 if data_to_insert:
-    worksheet.batch_clear(['A2:C'])
+    worksheet.batch_clear(['A:C'])
     worksheet.update('A2', data_to_insert)
     ist_now = (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime('%d-%b %H:%M')
     status_msg = f"Data Date: {fetched_date_str} | Last Update: {ist_now} (IST)"

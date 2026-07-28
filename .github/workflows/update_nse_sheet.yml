@@ -2,26 +2,49 @@ name: Update NSE Stocks to Google Sheet
 
 on:
   schedule:
-    # यह समय 14:45 UTC है, जिसका मतलब भारत में रात 8:15 PM है
-    - cron: '45 14 * * 1-5'
+    # 8:30 PM IST Monday-Saturday
+    - cron: '15 15 * * 1-6'
+
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   update-sheet:
+
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Repo
+
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.11"
 
       - name: Install Libraries
-        run: pip install gspread oauth2client pandas requests
+        run: |
+          pip install gspread
+          pip install oauth2client
+          pip install pandas
+          pip install requests
 
       - name: Run Python Script
         env:
           GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
-        run: python update_sheet.py
+        run: |
+          python src/data_acquisition/update_sheet.py
+
+      - name: Commit Updated CSV
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          git add data/historical
+
+          git diff --cached --quiet || git commit -m "Automatic NSE Update"
+
+          git push
