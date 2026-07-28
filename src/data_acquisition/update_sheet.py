@@ -119,7 +119,7 @@ for i in range(5):
 
 # 4. Update Sheet
 if data_to_insert:
-    worksheet.batch_clear(['A:C'])
+    worksheet.batch_clear(['A2:C'])
     worksheet.update('A2', data_to_insert)
     ist_now = (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime('%d-%b %H:%M')
     status_msg = f"Data Date: {fetched_date_str} | Last Update: {ist_now} (IST)"
