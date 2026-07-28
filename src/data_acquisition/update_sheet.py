@@ -9,15 +9,39 @@ import os
 import json
 
 # 1. Credentials Setup
-creds_json = os.environ.get('GCP_CREDENTIALS')
-creds_dict = json.loads(creds_json)
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-client = gspread.authorize(creds)
 
-# अपनी गूगल शीट की ID यहाँ डालें (URL के बीच का हिस्सा)
-spreadsheet_id = "1ibuSpjbCPaRyPM2u0mK3jN_eG3lWqzaz-eVdmbvL4yg" 
-worksheet = client.open_by_key(spreadsheet_id).worksheet("BhavStock List")
+scope = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/drive"
+]
+
+creds_json = os.environ.get("GCP_CREDENTIALS")
+
+if creds_json:
+    # Running on GitHub Actions
+    creds_dict = json.loads(creds_json)
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(
+        creds_dict,
+        scope
+    )
+else:
+    # Running on local computer
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(os.path.dirname(script_dir))
+    credentials_path = os.path.join(project_root, "credentials.json")
+
+    creds = ServiceAccountCredentials.from_json_keyfile_name(
+        credentials_path,
+        scope
+)
+
+client = gspread.authorize(creds)
+# Open Google Sheet
+spreadsheet_id = "1ibuSpjbCPaRyPM2u0mK3jN_eG3lWqzaz-eVdmbvL4yg"
+
+worksheet = client.open_by_key(
+    spreadsheet_id
+).worksheet("BhavStock List")
 
 # 2. NSE UDiFF Data Fetcher
 def fetch_bhavcopy_for_date(date_obj):
@@ -79,5 +103,5 @@ if data_to_insert:
     worksheet.update('A2', data_to_insert)
     ist_now = (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime('%d-%b %H:%M')
     status_msg = f"Data Date: {fetched_date_str} | Last Update: {ist_now} (IST)"
-    worksheet.update('K2', [[status_msg]])
+    worksheet.update('G2', [[status_msg]])
     print("SUCCESS: Sheet Updated!")
