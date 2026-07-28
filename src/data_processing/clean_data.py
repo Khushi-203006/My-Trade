@@ -193,6 +193,19 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
 
     df = df[required_columns]
 
+    # ------------------------
+    # Convert Date to MySQL format
+    # ------------------------
+
+    # Convert the Date column into pandas datetime
+    df["Date"] = pd.to_datetime(
+    df["Date"],
+    errors="coerce"
+)
+
+    # Convert to MySQL DATETIME format
+    df["Date"] = df["Date"].dt.strftime("%Y-%m-%d %H:%M:%S")
+
     # Temporary Check - For required columns
     # print("\nTemporary Check - Code is working till required columns step")
     # print(f"Rows after top 250 filter: {len(df)}")
