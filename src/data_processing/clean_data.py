@@ -200,6 +200,7 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
     # Convert the Date column into pandas datetime
     df["Date"] = pd.to_datetime(
     df["Date"],
+    dayfirst=True,
     errors="coerce"
 )
 
@@ -218,11 +219,6 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
     # break
 
     df = add_calculated_columns(df)
-
-    # ------------------------
-    # Round Values
-    # ------------------------
-    df = df.round(2)
 
     # Temporary Check - For calculated columns
    
@@ -249,7 +245,38 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
     # break
 
     # ------------------------
+    # Round Values
+    # ------------------------
+
+    decimal_columns = [
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "PrevClose",
+        "DailyReturnPct",
+        "DailyRange",
+        "RangePct",
+        "GapPct",
+        "TradedValue"
+    ]
+
+    df[decimal_columns] = df[decimal_columns].round(2)
+
+    # ------------------------
+    # Rearrange Columns
+    # ------------------------
+
+    df = rearrange_columns(df)
+
+    # ------------------------
     # Save Processed CSV
     # ------------------------
-    df.to_csv(output_file , index=False)
+
+    df.to_csv(
+        output_file,
+        index=False,
+        float_format="%.2f"
+    )
+
     print(f"Saved successfully: {output_file.name}")
