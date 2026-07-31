@@ -74,7 +74,6 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
     output_file = OUTPUT_FOLDER / csv_file.name
 
     if output_file.exists():
-        print(f"\nSkipping already processed: {csv_file.name}")
         continue
 
     print(f"\nProcessing pending file: {csv_file.name}")
