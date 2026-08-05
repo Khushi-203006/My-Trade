@@ -275,7 +275,7 @@ for csv_file in sorted(DATA_FOLDER.glob("nse_*.csv")):
             if_exists="append",
             index=False
         )
-
+        
         print(f"Imported : {len(df)} rows")
 
         # ============================================================
