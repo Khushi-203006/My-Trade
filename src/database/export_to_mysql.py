@@ -232,7 +232,7 @@ for csv_file in sorted(DATA_FOLDER.glob("nse_*.csv")):
         ).scalar()
 
     if count > 0:
-        print(f"Skipped : {csv_file.name} (Already Imported)")
+        #print(f"Skipped : {csv_file.name} (Already Imported)")
         continue
 
     # ============================================================
@@ -275,7 +275,7 @@ for csv_file in sorted(DATA_FOLDER.glob("nse_*.csv")):
             if_exists="append",
             index=False
         )
-        
+
         print(f"Imported : {len(df)} rows")
 
         # ============================================================
