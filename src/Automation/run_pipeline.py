@@ -71,10 +71,6 @@ def main():
         "STEP 3 : Importing data into MySQL"
     )
 
-    print("\n" + "=" * 60)
-    print("🎉 PIPELINE COMPLETED SUCCESSFULLY")
-    print("=" * 60)
-
     # --------------------------------------------------------
     # STEP 4 : Push data to Git
     # --------------------------------------------------------
@@ -94,5 +90,10 @@ def main():
         ["git", "push", "origin", "main"],
         "STEP 6 : Pushing changes to GitHub"
     )
+
+    print("\n" + "=" * 60)
+    print("🎉 PIPELINE COMPLETED SUCCESSFULLY")
+    print("=" * 60)
+    
 if __name__ == "__main__":
     main()
