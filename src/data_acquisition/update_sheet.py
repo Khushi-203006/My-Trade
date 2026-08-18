@@ -71,7 +71,7 @@ def fetch_bhavcopy_for_date(date_obj):
                             vol_col = c
                             break
                     
-                    # सिर्फ EQ सीरीज और ETFs (LIQUID/BEES) को बाहर करना
+                    # only keep rows where series is 'EQ' and filter out unwanted symbols
                     if series_col in df.columns:
                         df = df[df[series_col].astype(str).str.strip() == 'EQ']
                     filter_keywords = 'BEES|ETF|GOLD|LIQUID|CASE|SILVER|LIQ'

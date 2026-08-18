@@ -49,7 +49,7 @@ def main():
     # --------------------------------------------------------
 
     run_command(
-        ["git", "pull", "origin", "main"],
+        ["git", "pull","--no-edit", "origin", "main"],
         "STEP 1 : Pulling latest files from GitHub"
     )
 
@@ -75,6 +75,24 @@ def main():
     print("🎉 PIPELINE COMPLETED SUCCESSFULLY")
     print("=" * 60)
 
+    # --------------------------------------------------------
+    # STEP 4 : Push data to Git
+    # --------------------------------------------------------
 
+    run_command(
+        ["git", "add", "."],
+        "STEP 4 : Adding files to Git"
+    )
+
+    run_command(
+        ["git", "commit", "-m", "Automated commit from pipeline"],
+        "STEP 5 : Committing changes to Git"
+    )
+
+    run_command(
+        
+        ["git", "push", "origin", "main"],
+        "STEP 6 : Pushing changes to GitHub"
+    )
 if __name__ == "__main__":
     main()
