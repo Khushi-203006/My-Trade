@@ -4,6 +4,8 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox
 import threading
+import pyautogui
+import time
 
 # ============================================================
 # PROJECT ROOT
@@ -164,6 +166,7 @@ def pipeline():
             ]
         )
 
+        
         # Exit code 1 can mean "nothing to commit".
         # That is not necessarily an error.
         if result.returncode != 0:
