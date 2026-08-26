@@ -4,9 +4,6 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox
 import threading
-import pyautogui
-import time
-
 # ============================================================
 # PROJECT ROOT
 # ============================================================
