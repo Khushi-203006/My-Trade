@@ -268,6 +268,20 @@ for csv_file in sorted(DATA_FOLDER.glob("nse_*.csv")):
     # Read CSV only if it hasn't already been imported
     df = pd.read_csv(csv_file)
 
+    parsed_dates = pd.to_datetime(
+        df["Date"],
+        format="%Y-%m-%d %H:%M:%S",
+        errors="coerce"
+    )
+    expected_date = pd.Timestamp(file_date)
+    if parsed_dates.isna().any() or not (
+        parsed_dates.dt.normalize() == expected_date
+    ).all():
+        print(
+            f"Skipped : {csv_file.name} (Date does not match filename)"
+        )
+        continue
+
     try:
         df.to_sql(
             current_table,

@@ -74,7 +74,20 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
     output_file = OUTPUT_FOLDER / csv_file.name
 
     if output_file.exists():
-        continue
+        try:
+            existing_date = pd.read_csv(
+                output_file,
+                usecols=["Date"],
+                nrows=1
+            )["Date"].iloc[0]
+            expected_date = pd.Timestamp(
+                csv_file.stem.removeprefix("nse_")
+            )
+            if pd.Timestamp(existing_date).normalize() == expected_date:
+                continue
+            print(f"Reprocessing stale file: {csv_file.name}")
+        except (ValueError, IndexError, KeyError):
+            print(f"Reprocessing invalid file: {csv_file.name}")
 
     print(f"\nProcessing pending file: {csv_file.name}")
 
@@ -196,12 +209,26 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
     # Convert Date to MySQL format
     # ------------------------
 
-    # Convert the Date column into pandas datetime
+    # NSE files use ISO dates (YYYY-MM-DD). An explicit format prevents
+    # pandas from interpreting 2026-09-01 as 2026-01-09.
     df["Date"] = pd.to_datetime(
-    df["Date"],
-    dayfirst=True,
-    errors="coerce"
-)
+        df["Date"],
+        format="mixed",
+        dayfirst=False,
+        errors="coerce"
+    )
+
+    if df["Date"].isna().any():
+        print(f"Skipping {csv_file.name}: invalid date found")
+        continue
+
+    expected_date = pd.Timestamp(csv_file.stem.removeprefix("nse_"))
+    if not (df["Date"].dt.normalize() == expected_date).all():
+        print(
+            f"Skipping {csv_file.name}: source date does not match "
+            f"filename date {expected_date.date()}"
+        )
+        continue
 
     # Convert to MySQL DATETIME format
     df["Date"] = df["Date"].dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -272,10 +299,17 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
     # Save Processed CSV
     # ------------------------
 
-    df.to_csv(
-        output_file,
-        index=False,
-        float_format="%.2f"
-    )
+    try:
+        df.to_csv(
+            output_file,
+            index=False,
+            float_format="%.2f"
+        )
+    except PermissionError:
+        print(
+            f"Could not update {output_file.name}: file is locked. "
+            "Close the file and run the cleaner again."
+        )
+        continue
 
     print(f"Saved successfully: {output_file.name}")
