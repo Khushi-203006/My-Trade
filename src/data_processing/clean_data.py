@@ -99,6 +99,10 @@ for csv_file in INPUT_FOLDER.glob("*.csv"):  #glob("*.csv") -> means find every 
     df = pd.read_csv(csv_file)
     df.columns = df.columns.str.strip()
 
+    # Keep only normal equity stocks
+    if "SERIES" in df.columns:
+        df = df[df["SERIES"] == "EQ"].copy()
+
     # print(df.columns.tolist())
 
     for col in ["TtlTradgVol", "TTL_TRD_QNTY", "TtlTrdQty", "TotTrdQty", "TOTTRDQTY", "Volume"]:
