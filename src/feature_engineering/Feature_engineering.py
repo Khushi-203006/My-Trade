@@ -4,79 +4,100 @@ from pathlib import Path
 
 
 # ============================================================
-# PROJECT FOLDERS
+# PATHS
 # ============================================================
 
-# Find the main project folder
 BASE_DIR = Path(__file__).resolve().parents[2]
 
-# Folder containing cleaned NSE daily files
-INPUT_FOLDER = BASE_DIR / "data" / "processed"
+PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
-# File where the final ML features will be stored
-OUTPUT_FILE = INPUT_FOLDER / "ml_features.csv"
+OUTPUT_FILE = PROCESSED_DIR / "ml_features.csv"
 
 
 # ============================================================
-# LOAD ALL PROCESSED NSE FILES
+# 1. LOAD ALL PROCESSED NSE FILES
 # ============================================================
 
-def load_processed_data():
+def load_all_data():
     """
-    Read all processed NSE CSV files and combine them
+    Load all processed NSE CSV files and combine them
     into one DataFrame.
     """
 
-    csv_files = sorted(
-        INPUT_FOLDER.glob("nse_*.csv")
-    )
+    files = sorted(PROCESSED_DIR.glob("nse_*.csv"))
 
-    if not csv_files:
-        raise FileNotFoundError(
-            "No processed NSE files found in data/processed/"
-        )
+    if not files:
+        print("ERROR: No processed NSE files found.")
+        return pd.DataFrame()
 
     dataframes = []
 
-    for csv_file in csv_files:
+    print("\nLoading processed files...")
 
-        print(f"Reading: {csv_file.name}")
+    for file in files:
 
-        df = pd.read_csv(csv_file)
+        try:
+            df = pd.read_csv(file)
 
-        dataframes.append(df)
+            if df.empty:
+                continue
 
-    # Combine all daily files
+            dataframes.append(df)
+
+            print(f"Loaded: {file.name} | Rows: {len(df)}")
+
+        except Exception as e:
+            print(f"ERROR reading {file.name}: {e}")
+
+    if not dataframes:
+        print("ERROR: No valid data loaded.")
+        return pd.DataFrame()
+
     combined_df = pd.concat(
         dataframes,
         ignore_index=True
     )
 
+    print("\nTotal rows loaded:", len(combined_df))
+
     return combined_df
 
 
 # ============================================================
-# PREPARE DATA
+# 2. PREPARE DATA
 # ============================================================
 
 def prepare_data(df):
     """
-    Clean and sort the combined data before
-    calculating historical features.
+    Clean and prepare data before feature engineering.
     """
 
-    # Convert Date back to datetime
+    print("\nPreparing data...")
+
+    # --------------------------------------------------------
+    # Convert Date column
+    # --------------------------------------------------------
+
     df["Date"] = pd.to_datetime(
         df["Date"],
         errors="coerce"
     )
 
-    # Remove rows where date or symbol is missing
+    # --------------------------------------------------------
+    # Remove rows with missing Date or Symbol
+    # --------------------------------------------------------
+
     df = df.dropna(
         subset=["Date", "Symbol"]
-    )
+    ).copy()
 
-    # Remove exact duplicate market records
+    # --------------------------------------------------------
+    # Remove duplicate market records
+    #
+    # A stock should have only one record for a
+    # particular trading day.
+    # --------------------------------------------------------
+
     df = df.drop_duplicates(
         subset=[
             "Date",
@@ -92,29 +113,53 @@ def prepare_data(df):
         ]
     ).copy()
 
-    # Sort by stock first and date second
+    # --------------------------------------------------------
+    # Sort by stock and date
+    #
+    # This is VERY important because all rolling and
+    # previous-day calculations depend on chronological order.
+    # --------------------------------------------------------
+
     df = df.sort_values(
-        by=["Symbol", "Date"]
+        ["Symbol", "Date"]
     ).reset_index(drop=True)
+
+    print("Rows after cleaning:", len(df))
+
+    print(
+        "Duplicate Symbol-Date rows:",
+        df.duplicated(
+            subset=["Symbol", "Date"]
+        ).sum()
+    )
+
+    print(
+        "Stocks:",
+        df["Symbol"].nunique()
+    )
 
     return df
 
 
 # ============================================================
-# CREATE FEATURES
+# 3. CREATE FEATURES
 # ============================================================
 
 def create_features(df):
     """
-    Create historical features for each stock.
+    Create historical features used by the ML model.
 
     IMPORTANT:
-    All features use CURRENT or PREVIOUS information.
-    We do not use future information in the features.
+    Every feature uses information available BEFORE
+    the prediction day.
+
+    This prevents future-data leakage.
     """
 
+    print("\nCreating features...")
+
     # --------------------------------------------------------
-    # 1. PREVIOUS DAY RETURN
+    # Previous Day Return
     # --------------------------------------------------------
 
     df["PreviousReturn"] = (
@@ -122,9 +167,8 @@ def create_features(df):
         .shift(1)
     )
 
-
     # --------------------------------------------------------
-    # 2. PREVIOUS DAY RANGE
+    # Previous Day Range
     # --------------------------------------------------------
 
     df["PreviousRangePct"] = (
@@ -132,9 +176,8 @@ def create_features(df):
         .shift(1)
     )
 
-
     # --------------------------------------------------------
-    # 3. PREVIOUS DAY GAP
+    # Previous Day Gap
     # --------------------------------------------------------
 
     df["PreviousGapPct"] = (
@@ -142,61 +185,141 @@ def create_features(df):
         .shift(1)
     )
 
-
     # --------------------------------------------------------
-    # 4. THREE-DAY RETURN
+    # 3-Day Return
     # --------------------------------------------------------
-
-    # Price change compared with the close
-    # three trading days earlier.
 
     df["Return3D"] = (
         df.groupby("Symbol")["Close"]
-        .pct_change(periods=3)
-        * 100
+        .transform(
+            lambda x: (
+                x.shift(1) /
+                x.shift(4) - 1
+            ) * 100
+        )
     )
 
-
     # --------------------------------------------------------
-    # 5. FIVE-DAY RETURN
+    # 5-Day Return
     # --------------------------------------------------------
-
-    # Price change compared with the close
-    # five trading days earlier.
 
     df["Return5D"] = (
         df.groupby("Symbol")["Close"]
-        .pct_change(periods=5)
+        .transform(
+            lambda x: (
+                x.shift(1) /
+                x.shift(6) - 1
+            ) * 100
+        )
+    )
+
+    # --------------------------------------------------------
+    # 10-Day Return
+    # --------------------------------------------------------
+
+    df["Return10D"] = (
+        df.groupby("Symbol")["Close"]
+        .transform(
+            lambda x: (
+                x.shift(1) /
+                x.shift(11) - 1
+            ) * 100
+        )
+    )
+
+    # ========================================================
+    # MOVING AVERAGES
+    # ========================================================
+
+    # --------------------------------------------------------
+    # 5-Day SMA
+    # --------------------------------------------------------
+
+    df["SMA5"] = (
+        df.groupby("Symbol")["Close"]
+        .transform(
+            lambda x:
+            x.shift(1)
+            .rolling(5)
+            .mean()
+        )
+    )
+
+    # --------------------------------------------------------
+    # 10-Day SMA
+    # --------------------------------------------------------
+
+    df["SMA10"] = (
+        df.groupby("Symbol")["Close"]
+        .transform(
+            lambda x:
+            x.shift(1)
+            .rolling(10)
+            .mean()
+        )
+    )
+
+    # --------------------------------------------------------
+    # Current Price vs SMA5
+    #
+    # Positive = price above recent average
+    # Negative = price below recent average
+    # --------------------------------------------------------
+
+    df["PriceVsSMA5"] = (
+        (df["Close"] - df["SMA5"])
+        / df["SMA5"].replace(0, np.nan)
         * 100
     )
 
+    # --------------------------------------------------------
+    # Current Price vs SMA10
+    # --------------------------------------------------------
+
+    df["PriceVsSMA10"] = (
+        (df["Close"] - df["SMA10"])
+        / df["SMA10"].replace(0, np.nan)
+        * 100
+    )
+
+    # ========================================================
+    # VOLUME FEATURES
+    # ========================================================
 
     # --------------------------------------------------------
-    # 6. FIVE-DAY AVERAGE VOLUME
+    # Average Volume - 5 Days
     # --------------------------------------------------------
-
-    # IMPORTANT:
-    # shift(1) means today's volume is NOT included.
-    #
-    # Therefore, when predicting today's movement,
-    # this represents the average volume from previous
-    # trading days.
 
     df["AvgVolume5D"] = (
         df.groupby("Symbol")["Volume"]
         .transform(
             lambda x:
-            x.shift(1).rolling(5).mean()
+            x.shift(1)
+            .rolling(5)
+            .mean()
         )
     )
 
+    # --------------------------------------------------------
+    # Average Volume - 10 Days
+    # --------------------------------------------------------
+
+    df["AvgVolume10D"] = (
+        df.groupby("Symbol")["Volume"]
+        .transform(
+            lambda x:
+            x.shift(1)
+            .rolling(10)
+            .mean()
+        )
+    )
 
     # --------------------------------------------------------
-    # 7. VOLUME RATIO
+    # Volume Ratio
+    #
+    # Previous day's volume compared with the
+    # average volume of the previous 5 days.
     # --------------------------------------------------------
-
-    # Yesterday's volume divided by the previous
-    # five-day average volume.
 
     previous_volume = (
         df.groupby("Symbol")["Volume"]
@@ -205,30 +328,109 @@ def create_features(df):
 
     df["VolumeRatio"] = (
         previous_volume /
-        df["AvgVolume5D"]
+        df["AvgVolume5D"].replace(0, np.nan)
     )
 
+    # --------------------------------------------------------
+    # Volume Trend
+    #
+    # 5-day average volume compared with
+    # 10-day average volume.
+    # --------------------------------------------------------
+
+    df["VolumeTrend"] = (
+        df["AvgVolume5D"] /
+        df["AvgVolume10D"].replace(0, np.nan)
+    )
+
+    # ========================================================
+    # VOLATILITY FEATURES
+    # ========================================================
 
     # --------------------------------------------------------
-    # 8. FIVE-DAY VOLATILITY
+    # 5-Day Volatility
     # --------------------------------------------------------
-
-    # Standard deviation of previous daily returns.
 
     df["Volatility5D"] = (
         df.groupby("Symbol")["DailyReturnPct"]
         .transform(
             lambda x:
-            x.shift(1).rolling(5).std()
+            x.shift(1)
+            .rolling(5)
+            .std()
         )
     )
 
+    # --------------------------------------------------------
+    # 10-Day Volatility
+    # --------------------------------------------------------
+
+    df["Volatility10D"] = (
+        df.groupby("Symbol")["DailyReturnPct"]
+        .transform(
+            lambda x:
+            x.shift(1)
+            .rolling(10)
+            .std()
+        )
+    )
+
+    # ========================================================
+    # PRICE RANGE FEATURES
+    # ========================================================
+
+    # --------------------------------------------------------
+    # Highest price during previous 5 days
+    # --------------------------------------------------------
+
+    df["High5D"] = (
+        df.groupby("Symbol")["High"]
+        .transform(
+            lambda x:
+            x.shift(1)
+            .rolling(5)
+            .max()
+        )
+    )
+
+    # --------------------------------------------------------
+    # Lowest price during previous 5 days
+    # --------------------------------------------------------
+
+    df["Low5D"] = (
+        df.groupby("Symbol")["Low"]
+        .transform(
+            lambda x:
+            x.shift(1)
+            .rolling(5)
+            .min()
+        )
+    )
+
+    # --------------------------------------------------------
+    # Position of current close inside previous 5-day range
+    #
+    # 0   = near the lowest price
+    # 1   = near the highest price
+    # --------------------------------------------------------
+
+    price_range = (
+        df["High5D"] - df["Low5D"]
+    )
+
+    df["PricePosition5D"] = (
+        (df["Close"] - df["Low5D"])
+        /
+        price_range.replace(0, np.nan)
+    )
+
+    print("Feature creation completed.")
 
     return df
 
 
 # ============================================================
-# CREATE TARGET
+# 4. CREATE TARGET
 # ============================================================
 
 def create_target(df):
@@ -240,45 +442,87 @@ def create_target(df):
         is higher than today's closing price.
 
     Target = 0
-        otherwise.
+        if the NEXT trading day's closing price
+        is not higher.
+
+    The last available row for each stock is removed
+    because its future closing price is unknown.
     """
 
+    print("\nCreating target...")
+
+    # --------------------------------------------------------
     # Get next trading day's closing price
+    # --------------------------------------------------------
+
     df["NextClose"] = (
         df.groupby("Symbol")["Close"]
         .shift(-1)
     )
 
-    # Create binary target
+    # --------------------------------------------------------
+    # Create target
+    #
+    # 1 = next day's Close > today's Close
+    # 0 = next day's Close <= today's Close
+    # --------------------------------------------------------
+
     df["Target"] = (
         df["NextClose"] > df["Close"]
-    ).astype(int)
+    ).astype("float")
+
+    # --------------------------------------------------------
+    # Last row of each stock has no future price.
+    #
+    # Do NOT incorrectly classify it as 0.
+    # --------------------------------------------------------
+
+    df.loc[
+        df["NextClose"].isna(),
+        "Target"
+    ] = np.nan
+
+    print("Target created.")
 
     return df
 
 
 # ============================================================
-# SELECT FINAL ML COLUMNS
+# 5. SELECT FINAL COLUMNS
 # ============================================================
 
 def select_final_columns(df):
     """
-    Keep the columns required for machine learning.
+    Select the columns required for ML training.
+
+    This keeps:
+    - Original market data
+    - Engineered features
+    - Target
     """
 
-    feature_columns = [
+    print("\nSelecting final columns...")
+
+    final_columns = [
+
+        # ----------------------------------------------------
+        # Identification
+        # ----------------------------------------------------
+
         "Date",
         "Symbol",
         "Company",
 
-        # Current market information
+        # ----------------------------------------------------
+        # Original market data
+        # ----------------------------------------------------
+
         "Open",
         "High",
         "Low",
         "Close",
         "PrevClose",
 
-        # Existing calculated features
         "DailyReturnPct",
         "DailyRange",
         "RangePct",
@@ -288,135 +532,236 @@ def select_final_columns(df):
         "TradedValue",
         "Trades",
 
-        # New features
+        # ----------------------------------------------------
+        # Previous-day features
+        # ----------------------------------------------------
+
         "PreviousReturn",
         "PreviousRangePct",
         "PreviousGapPct",
+
+        # ----------------------------------------------------
+        # Momentum features
+        # ----------------------------------------------------
+
         "Return3D",
         "Return5D",
-        "AvgVolume5D",
-        "VolumeRatio",
-        "Volatility5D",
+        "Return10D",
 
+        # ----------------------------------------------------
+        # Moving average features
+        # ----------------------------------------------------
+
+        "SMA5",
+        "SMA10",
+        "PriceVsSMA5",
+        "PriceVsSMA10",
+
+        # ----------------------------------------------------
+        # Volume features
+        # ----------------------------------------------------
+
+        "AvgVolume5D",
+        "AvgVolume10D",
+        "VolumeRatio",
+        "VolumeTrend",
+
+        # ----------------------------------------------------
+        # Volatility features
+        # ----------------------------------------------------
+
+        "Volatility5D",
+        "Volatility10D",
+
+        # ----------------------------------------------------
+        # Price range features
+        # ----------------------------------------------------
+
+        "High5D",
+        "Low5D",
+        "PricePosition5D",
+
+        # ----------------------------------------------------
         # Target
+        # ----------------------------------------------------
+
         "Target"
     ]
 
-    return df[feature_columns]
+    # Check whether any required column is missing
+
+    missing_columns = [
+        column
+        for column in final_columns
+        if column not in df.columns
+    ]
+
+    if missing_columns:
+
+        print("\nERROR: Missing columns:")
+
+        for column in missing_columns:
+            print(" -", column)
+
+        raise ValueError(
+            "Some required columns are missing."
+        )
+
+    return df[final_columns].copy()
 
 
 # ============================================================
-# MAIN FUNCTION
+# 6. MAIN PIPELINE
 # ============================================================
 
 def main():
 
-    print("=" * 60)
-    print("FEATURE ENGINEERING STARTED")
-    print("=" * 60)
-
-
-    # --------------------------------------------------------
-    # STEP 1: LOAD DATA
-    # --------------------------------------------------------
-
-    df = load_processed_data()
-
-    print(
-        f"\nTotal rows loaded: {len(df):,}"
-    )
-
+    print("\n")
+    print("=" * 70)
+    print("MY-TRADE FEATURE ENGINEERING")
+    print("=" * 70)
 
     # --------------------------------------------------------
-    # STEP 2: PREPARE DATA
+    # STEP 1
+    # Load data
+    # --------------------------------------------------------
+
+    df = load_all_data()
+
+    if df.empty:
+        return
+
+    # --------------------------------------------------------
+    # STEP 2
+    # Prepare data
     # --------------------------------------------------------
 
     df = prepare_data(df)
 
-
     # --------------------------------------------------------
-    # STEP 3: CREATE FEATURES
+    # STEP 3
+    # Create features
     # --------------------------------------------------------
-
-    print("\nCreating historical features...")
 
     df = create_features(df)
 
-
     # --------------------------------------------------------
-    # STEP 4: CREATE TARGET
+    # STEP 4
+    # Create target
     # --------------------------------------------------------
-
-    print("Creating prediction target...")
 
     df = create_target(df)
 
-
-    # --------------------------------------------------------
-    # STEP 5: REMOVE ROWS WITHOUT ENOUGH HISTORY
-    # --------------------------------------------------------
-
-    # The first few rows of each stock cannot have
-    # 3-day / 5-day historical features.
+    # ========================================================
+    # REQUIRED ML FEATURES
+    # ========================================================
 
     feature_columns = [
+
         "PreviousReturn",
         "PreviousRangePct",
         "PreviousGapPct",
+
         "Return3D",
         "Return5D",
+        "Return10D",
+
+        "SMA5",
+        "SMA10",
+
+        "PriceVsSMA5",
+        "PriceVsSMA10",
+
         "AvgVolume5D",
+        "AvgVolume10D",
+
         "VolumeRatio",
-        "Volatility5D"
+        "VolumeTrend",
+
+        "Volatility5D",
+        "Volatility10D",
+
+        "High5D",
+        "Low5D",
+
+        "PricePosition5D"
     ]
+
+    # --------------------------------------------------------
+    # Remove rows that do not have enough historical data
+    # --------------------------------------------------------
+    
+    df = df.dropna(
+        subset=feature_columns + ["Target"]
+    ).copy()
+
+    # --------------------------------------------------------
+    # Remove infinite values if any
+    # --------------------------------------------------------
+
+    df = df.replace(
+        [np.inf, -np.inf],
+        np.nan
+    )
 
     df = df.dropna(
         subset=feature_columns + ["Target"]
-    )
-
+    ).copy()
 
     # --------------------------------------------------------
-    # STEP 6: SELECT FINAL COLUMNS
+    # Convert Target to integer
+    # --------------------------------------------------------
+
+    df["Target"] = (
+        df["Target"]
+        .astype(int)
+    )
+
+    # --------------------------------------------------------
+    # Select final columns
     # --------------------------------------------------------
 
     df = select_final_columns(df)
 
-
     # --------------------------------------------------------
-    # STEP 7: SAVE ML DATASET
-    # --------------------------------------------------------
-
-    df.to_csv(
-        OUTPUT_FILE,
-        index=False,
-        float_format="%.4f"
-    )
-
-
-    # --------------------------------------------------------
-    # SUMMARY
+    # Sort final dataset
     # --------------------------------------------------------
 
-    print("\n" + "=" * 60)
-    print("FEATURE ENGINEERING COMPLETED")
-    print("=" * 60)
+    df = df.sort_values(
+        ["Date", "Symbol"]
+    ).reset_index(drop=True)
+
+    # ========================================================
+    # VALIDATION
+    # ========================================================
+
+    print("\n")
+    print("=" * 70)
+    print("FINAL DATASET VALIDATION")
+    print("=" * 70)
 
     print(
-        f"Rows in ML dataset: {len(df):,}"
-    )
-
-    print(
-        f"Stocks: {df['Symbol'].nunique():,}"
+        "Rows:",
+        len(df)
     )
 
     print(
-        f"Date range: "
-        f"{df['Date'].min().date()} → "
-        f"{df['Date'].max().date()}"
+        "Stocks:",
+        df["Symbol"].nunique()
     )
 
     print(
-        f"\nSaved to:\n{OUTPUT_FILE}"
+        "Date range:",
+        df["Date"].min().date(),
+        "to",
+        df["Date"].max().date()
+    )
+
+    print(
+        "Duplicate Symbol-Date rows:",
+        df.duplicated(
+            subset=["Symbol", "Date"]
+        ).sum()
     )
 
     print("\nTarget distribution:")
@@ -426,6 +771,52 @@ def main():
         .value_counts()
         .sort_index()
     )
+
+    print("\nMissing values:")
+
+    missing_values = (
+        df.isna()
+        .sum()
+    )
+
+    missing_values = (
+        missing_values[
+            missing_values > 0
+        ]
+    )
+
+    if missing_values.empty:
+        print("No missing values.")
+
+    else:
+        print(missing_values)
+
+    # ========================================================
+    # SAVE
+    # ========================================================
+
+    df.to_csv(
+        OUTPUT_FILE,
+        index=False
+    )
+
+    print("\n")
+    print("=" * 70)
+    print("SUCCESS")
+    print("=" * 70)
+
+    print(
+        f"ML features saved to:\n{OUTPUT_FILE}"
+    )
+
+    print(
+        "\nFinal columns:"
+    )
+
+    for column in df.columns:
+        print(" -", column)
+
+    print("\nFeature engineering completed successfully.")
 
 
 # ============================================================
