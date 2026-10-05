@@ -50,7 +50,7 @@ print(f"Stocks: {df['Symbol'].nunique():,}")
 
 print(
     f"Date range: "
-    f"{df['Date'].min().date()} → "
+    f"{df['Date'].min().date()} -> "
     f"{df['Date'].max().date()}"
 )
 
@@ -208,13 +208,13 @@ print(
 
 print(
     f"\nTraining dates: "
-    f"{train_df['Date'].min().date()} → "
+    f"{train_df['Date'].min().date()} -> "
     f"{train_df['Date'].max().date()}"
 )
 
 print(
     f"Testing dates : "
-    f"{test_df['Date'].min().date()} → "
+    f"{test_df['Date'].min().date()} -> "
     f"{test_df['Date'].max().date()}"
 )
 

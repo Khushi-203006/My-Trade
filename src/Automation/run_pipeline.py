@@ -15,8 +15,14 @@ PYTHON_EXE = PROJECT_DIR / "venv" / "Scripts" / "python.exe"
 
 # Script paths
 CLEAN_SCRIPT = PROJECT_DIR / "src" / "data_processing" / "clean_data.py"
-DB_SCRIPT = PROJECT_DIR / "src" / "database" / "export_to_mysql.py"
 
+FEATURE_SCRIPT = PROJECT_DIR / "src" / "feature_engineering" / "feature_engineering.py"
+
+TRAIN_SCRIPT = PROJECT_DIR / "src" / "Prediction" / "train_model.py"
+
+PREDICT_SCRIPT = PROJECT_DIR / "src" / "Prediction" / "predict.py"
+
+DB_SCRIPT = PROJECT_DIR / "src" / "database" / "export_to_mysql.py"
 # ============================================================
 # TKINTER WINDOW SETUP
 # ============================================================
@@ -134,8 +140,68 @@ def pipeline():
         # ----------------------------------------------------
         # STEP 4
         # ----------------------------------------------------
+        write_output(
+            "Step 4: Running feature_engineering.py..."
+        )
 
-        write_output("Step 4 : Updating GitHub repository...")
+        result = run_command(
+            [str(PYTHON_EXE), str(FEATURE_SCRIPT)]
+        )
+
+        if result.returncode != 0:
+            raise Exception(
+                "Step 4 failed:\n" + result.stderr
+            )
+
+        write_output(
+            "Step 4: Feature Engineering - COMPLETED"
+        )
+
+        # ----------------------------------------------------
+        # STEP 5
+        # ----------------------------------------------------
+        write_output(
+            "Step 5: Training ML model..."
+        )
+
+        result = run_command(
+            [str(PYTHON_EXE), str(TRAIN_SCRIPT)]
+        )
+
+        if result.returncode != 0:
+            raise Exception(
+                "Step 5 failed:\n" + result.stderr
+            )
+
+        write_output(
+            "Step 5: ML Model Training - COMPLETED"
+        )
+
+        # ----------------------------------------------------
+        # STEP 6
+        # ----------------------------------------------------
+        write_output(
+            "Step 6: Generating Top 10 predictions..."
+        )
+
+        result = run_command(
+            [str(PYTHON_EXE), str(PREDICT_SCRIPT)]
+        )
+
+        if result.returncode != 0:
+            raise Exception(
+                "Step 6 failed:\n" + result.stderr
+            )
+
+        write_output(
+            "Step 6: Top 10 Predictions - COMPLETED"
+        )
+
+        # ----------------------------------------------------
+        # STEP 7
+        # ----------------------------------------------------
+
+        write_output("Step 7 : Updating GitHub repository...")
         write_output("Adding files to Git...")
 
         write_output("    git add .")
@@ -196,7 +262,7 @@ def pipeline():
 
         write_output("")
         write_output(
-            "Step 4: Updating GitHub - COMPLETED"
+            "Step 7: Updating GitHub - COMPLETED"
         )
 
         write_output("")

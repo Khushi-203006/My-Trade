@@ -1,7 +1,7 @@
 import pandas as pd
 import joblib
 from pathlib import Path
-
+from sqlalchemy import create_engine
 
 # ============================================================
 # PATHS
@@ -23,13 +23,33 @@ MODEL_FILE = (
     / "model.pkl"
 )
 
-OUTPUT_FILE = (
+PREDICTION_DIR = (
     BASE_DIR
     / "data"
-    / "processed"
-    / "todays_prediction.csv"
+    / "predictions"
 )
 
+PREDICTION_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+# ============================================================
+# MYSQL CONNECTION
+# ============================================================
+
+DB_USER = "root"
+DB_PASSWORD = "khushi"
+DB_HOST = "localhost"
+DB_PORT = "3306"
+DB_NAME = "stock_prediction"
+
+engine = create_engine(
+    f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@"
+    f"{DB_HOST}:{DB_PORT}/{DB_NAME}"
+)
+
+print("Connected to prediction database successfully.")
 
 # ============================================================
 # FEATURES USED BY THE MODEL
@@ -143,16 +163,50 @@ top10 = top10[
     ]
 ]
 
+# ============================================================
+# ADD PREDICTION RANK
+# ============================================================
+
+top10["prediction_rank"] = range(1, len(top10) + 1)
+
 
 # ============================================================
-# SAVE OUTPUT
+# SAVE TOP 10 TO MYSQL
 # ============================================================
 
-top10.to_csv(
-    OUTPUT_FILE,
+mysql_data = top10.rename(
+    columns={
+        "Date": "prediction_date",
+        "Symbol": "symbol",
+        "Company": "company",
+        "Close": "close_price",
+        "Probability_UP": "probability_up",
+        "Predicted": "predicted"
+    }
+)
+
+mysql_data.to_sql(
+    "todays_prediction",
+    con=engine,
+    if_exists="append",
     index=False
 )
 
+print("\nTop 10 predictions saved to MySQL.")
+
+# ============================================================
+# SAVE DAILY PREDICTION FILE
+# ============================================================
+
+output_file = (
+    PREDICTION_DIR
+    / f"prediction_{latest_date.strftime('%Y-%m-%d')}.csv"
+)
+
+top10.to_csv(
+    output_file,
+    index=False
+)
 
 # ============================================================
 # DISPLAY RESULTS
@@ -167,7 +221,7 @@ print(
 )
 
 print("\nPrediction file saved to:")
-print(OUTPUT_FILE)
+print(output_file)
 
 print("\n" + "=" * 60)
 print("PREDICTION COMPLETED")
