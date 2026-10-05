@@ -2,6 +2,7 @@ import pandas as pd
 import joblib
 from pathlib import Path
 from sqlalchemy import create_engine
+from sqlalchemy import text
 
 # ============================================================
 # PATHS
@@ -54,6 +55,11 @@ print("Connected to prediction database successfully.")
 # ============================================================
 # FEATURES USED BY THE MODEL
 # ============================================================
+
+with engine.begin() as connection:
+    connection.execute(
+        text("DELETE FROM todays_prediction")
+    )
 
 FEATURES = [
     "PreviousReturn",
